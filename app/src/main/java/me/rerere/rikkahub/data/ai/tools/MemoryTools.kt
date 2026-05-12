@@ -21,17 +21,19 @@ fun buildMemoryTools(
     json: Json,
     onCreation: suspend (String) -> AssistantMemory,
     onUpdate: suspend (Int, String) -> AssistantMemory,
-    onDelete: suspend (Int) -> Unit
+    onDelete: suspend (Int) -> Unit,
+    onList: suspend () -> List<AssistantMemory>
 ): List<Tool> = listOf(
     Tool(
-        name = "memory_tool",
-        description = """
+        name = “memory_tool”,
+        description = “””
             The memory tool stores long-term information across conversations.
-            Use `action` to control the operation: `create` (add), `edit` (update), `delete` (remove).
+            Use `action` to control the operation: `list` (retrieve all), `create` (add), `edit` (update), `delete` (remove).
+            - Start of conversation: `list` to retrieve all existing memories
             - No relevant record: `create` + `content`
             - Existing relevant record: `edit` + `id` + `content`
             - Outdated/irrelevant record: `delete` + `id`
-            Memories will automatically appear in the <memories> tag in later conversations.
+            At the beginning of each conversation, you MUST call `list` first to load existing memories.
             Do not store sensitive information (e.g., ethnicity, religion, sexual orientation, political views, sex life, criminal records).
             You may store: preferred name, preferences, plans, work-related notes, chat style preferences, first chat time, etc.
             Do not show memory content directly in the conversation unless the user explicitly asks.
@@ -39,62 +41,73 @@ fun buildMemoryTools(
             Similar memories should be merged; prefer updating existing records.
 
             Examples:
-            {"action":"create","content":"User prefers brief replies and is more active on weekends."}
-            {"action":"edit","id":12,"content":"User’s preferred name updated to “A-Xing”, prefers Chinese replies."}
-            {"action":"delete","id":7}
-        """.trimIndent(),
+            {“action”:”list”}
+            {“action”:”create”,”content”:”User prefers brief replies and is more active on weekends.”}
+            {“action”:”edit”,”id”:12,”content”:”User’s preferred name updated to “A-Xing”, prefers Chinese replies.”}
+            {“action”:”delete”,”id”:7}
+        “””.trimIndent(),
         parameters = {
             InputSchema.Obj(
                 properties = buildJsonObject {
-                    put("action", buildJsonObject {
-                        put("type", "string")
+                    put(“action”, buildJsonObject {
+                        put(“type”, “string”)
                         put(
-                            "enum",
+                            “enum”,
                             buildJsonArray {
-                                add("create")
-                                add("edit")
-                                add("delete")
+                                add(“list”)
+                                add(“create”)
+                                add(“edit”)
+                                add(“delete”)
                             }
                         )
-                        put("description", "Operation to perform: create, edit, or delete")
+                        put(“description”, “Operation to perform: list, create, edit, or delete”)
                     })
-                    put("id", buildJsonObject {
-                        put("type", "integer")
-                        put("description", "The id of the memory record (required for edit/delete)")
+                    put(“id”, buildJsonObject {
+                        put(“type”, “integer”)
+                        put(“description”, “The id of the memory record (required for edit/delete)”)
                     })
-                    put("content", buildJsonObject {
-                        put("type", "string")
-                        put("description", "The content of the memory record (required for create/edit)")
+                    put(“content”, buildJsonObject {
+                        put(“type”, “string”)
+                        put(“description”, “The content of the memory record (required for create/edit)”)
                     })
                 },
-                required = listOf("action")
+                required = listOf(“action”)
             )
         },
         execute = {
             val params = it.jsonObject
-            val action = params["action"]?.jsonPrimitive?.contentOrNull ?: error("action is required")
+            val action = params[“action”]?.jsonPrimitive?.contentOrNull ?: error(“action is required”)
             val payload = when (action) {
-                "create" -> {
-                    val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                    json.encodeToJsonElement(AssistantMemory.serializer(), onCreation(content))
-                }
-
-                "edit" -> {
-                    val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
-                    val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                    json.encodeToJsonElement(AssistantMemory.serializer(), onUpdate(id, content))
-                }
-
-                "delete" -> {
-                    val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
-                    onDelete(id)
-                    buildJsonObject {
-                        put("success", true)
-                        put("id", id)
+                “list” -> {
+                    val memories = onList()
+                    buildJsonArray {
+                        memories.forEach { memory ->
+                            add(json.encodeToJsonElement(AssistantMemory.serializer(), memory))
+                        }
                     }
                 }
 
-                else -> error("unknown action: $action, must be one of [create, edit, delete]")
+                “create” -> {
+                    val content = params[“content”]?.jsonPrimitive?.contentOrNull ?: error(“content is required”)
+                    json.encodeToJsonElement(AssistantMemory.serializer(), onCreation(content))
+                }
+
+                “edit” -> {
+                    val id = params[“id”]?.jsonPrimitive?.intOrNull ?: error(“id is required”)
+                    val content = params[“content”]?.jsonPrimitive?.contentOrNull ?: error(“content is required”)
+                    json.encodeToJsonElement(AssistantMemory.serializer(), onUpdate(id, content))
+                }
+
+                “delete” -> {
+                    val id = params[“id”]?.jsonPrimitive?.intOrNull ?: error(“id is required”)
+                    onDelete(id)
+                    buildJsonObject {
+                        put(“success”, true)
+                        put(“id”, id)
+                    }
+                }
+
+                else -> error(“unknown action: $action, must be one of [list, create, edit, delete]”)
             }
             listOf(UIMessagePart.Text(payload.toString()))
         }

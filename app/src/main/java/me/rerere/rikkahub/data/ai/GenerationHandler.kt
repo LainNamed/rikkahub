@@ -103,6 +103,9 @@ class GenerationHandler(
                         },
                         onDelete = { id ->
                             memoryRepo.deleteMemory(id)
+                        },
+                        onList = {
+                            memoryRepo.getMemoriesOfAssistant(memoryAssistantId)
                         }
                     ).let(this::addAll)
                 }
