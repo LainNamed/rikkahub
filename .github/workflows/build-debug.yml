@@ -31,7 +31,7 @@ jobs:
           cat > app/google-services.json << 'GSEOF'
           {
             "project_info": {"project_number": "0", "project_id": "dummy", "storage_bucket": "dummy.appspot.com"},
-            "client": [{"client_info": {"mobilesdk_app_id": "1:0:android:dummy", "android_client_info": {"package_name": "me.rerere.rikkahub"}}, "api_key": [{"current_key": "dummy"}]}],
+            "client": [{"client_info": {"mobilesdk_app_id": "1:0:android:dummy", "android_client_info": {"package_name": "me.rerere.rikkahub"}}, "api_key": [{"current_key": "dummy"}]}, {"client_info": {"mobilesdk_app_id": "1:0:android:dummy2", "android_client_info": {"package_name": "me.rerere.rikkahub.debug"}}, "api_key": [{"current_key": "dummy"}]}],
             "configuration_version": "1"
           }
           GSEOF
