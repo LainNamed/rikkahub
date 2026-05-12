@@ -39,6 +39,9 @@ jobs:
           }
           GSEOF
 
+      - name: Install web dependencies
+        run: cd web-ui && bun install
+
       - name: Build Debug APK
         run: |
           chmod +x gradlew
