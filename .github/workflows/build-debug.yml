@@ -26,6 +26,9 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Create dummy google-services.json
         run: |
           cat > app/google-services.json << 'GSEOF'
